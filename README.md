@@ -30,7 +30,3 @@ matplotlib: Proporciona funcionalidades para la visualización de datos. Se util
 
 Teoría de Markowitz
 La Teoría de Markowitz, también conocida como teoría de la cartera, es un enfoque para la selección de cartera que enfatiza la diversificación y el análisis de riesgo-rendimiento. En esta aplicación, utilizamos la Teoría de Markowitz para determinar la asignación óptima de activos que minimiza la varianza del portafolio para un rendimiento esperado dado.
-
-```
-
-```

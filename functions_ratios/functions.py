@@ -51,6 +51,15 @@ def negative_treynor_ratio(
     return -(port_return - rf) / beta if beta != 0 else np.nan
 
 
+# Función para calcular el ratio de Treynor de un portafolio
+def treynor_ratio_calculate(
+    weights, expected_returns, rf, data, market_returns, data_without_ipsa
+):
+    port_return = portfolio_return(weights, expected_returns)
+    beta = portfolio_beta(weights, data, market_returns, data_without_ipsa)
+    return (port_return - rf) / beta if beta != 0 else np.nan
+
+
 def positive_treynor_ratio(
     weights, expected_returns, rf, cov_matrix, data, market_returns, data_without_ipsa
 ):

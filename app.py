@@ -4,6 +4,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import yfinance as yf
+import time
 from functions_ratios.functions import (
     portfolio_return,
     portfolio_volatility,
@@ -13,9 +14,12 @@ from functions_ratios.functions import (
     negative_sortino_ratio,
     positive_treynor_ratio,
     max_return_portfolio,
+    treynor_ratio_calculate,
 )
 
-stockList = ["^GSPC", "AAPL", "TSLA", "NVDA"]
+start_time = time.time()
+
+stockList = ["^GSPC", "AAPL", "TSLA", "NVDA", "MSFT", "CAT", "V", "MA"]
 
 
 # Cargamos el archivo Excel en un DataFrame de pandas
@@ -118,7 +122,7 @@ efficient_frontier_data = {
     "Beta": [],
     "Treynor Ratio": [],
 }
-# Optimización para encontrar el portafolio de máximo rendimiento
+
 for target_return in np.linspace(
     expected_returns.min(), expected_returns.max(), num_portfolios
 ):
@@ -151,41 +155,8 @@ for target_return in np.linspace(
     efficient_frontier_data["Beta"].append(beta)
     efficient_frontier_data["Treynor Ratio"].append(treynor_ratio)
 
-# Tabla de resultados
-results_df = pd.DataFrame(efficient_frontier_data)
-results_df.index += 1  # Para que los índices comiencen en 1
-results_df.index.name = "Portafolio de Markowitz"
-
-# Calculamos el portafolio con el mayor ratio de Sharpe en la frontera eficiente
-max_sharpe_idx = np.argmax(efficient_frontier_data["Sharpe Ratio"])
-max_sharpe_portfolio = {
-    "Risk": efficient_frontier_data["Risk"][max_sharpe_idx],
-    "Return": efficient_frontier_data["Return"][max_sharpe_idx],
-    "Sharpe Ratio": efficient_frontier_data["Sharpe Ratio"][max_sharpe_idx],
-    "Beta": efficient_frontier_data["Beta"][max_sharpe_idx],
-    "Treynor Ratio": efficient_frontier_data["Treynor Ratio"][max_sharpe_idx],
-}
-
-# Calculamos el portafolio con el menor riesgo en la frontera eficiente
-min_risk_idx = np.argmin(efficient_frontier_data["Risk"])
-min_risk_portfolio = {
-    "Risk": efficient_frontier_data["Risk"][min_risk_idx],
-    "Return": efficient_frontier_data["Return"][min_risk_idx],
-    "Sharpe Ratio": efficient_frontier_data["Sharpe Ratio"][min_risk_idx],
-    "Beta": efficient_frontier_data["Beta"][min_risk_idx],
-    "Treynor Ratio": efficient_frontier_data["Treynor Ratio"][min_risk_idx],
-}
-
-max_treynor_idx = np.argmax(efficient_frontier_data["Treynor Ratio"])
-max_treynor_portfolio = {
-    "Risk": efficient_frontier_data["Risk"][max_treynor_idx],
-    "Return": efficient_frontier_data["Return"][max_treynor_idx],
-    "Sharpe Ratio": efficient_frontier_data["Sharpe Ratio"][max_treynor_idx],
-    "Beta": efficient_frontier_data["Beta"][max_treynor_idx],
-    "Treynor Ratio": efficient_frontier_data["Treynor Ratio"][max_treynor_idx],
-}
 # Ponderaciones iguales para cada acción
-equal_weights = np.array([1.0 / len(expected_returns)] * len(expected_returns))
+equal_weights = np.array(initial_guess)
 
 # Calculamos las métricas para este portafolio
 equal_weight_metrics = {
@@ -206,30 +177,15 @@ equal_weight_metrics = {
     ),
 }
 
-
-equal_weight_df = pd.DataFrame(
-    [equal_weight_metrics], index=["Portafolio Igualmente Ponderado"]
-)
-
-max_sharpe_df = pd.DataFrame(
-    [max_sharpe_portfolio], index=["Portafolio de Máximo Sharpe"]
-)
-min_risk_df = pd.DataFrame([min_risk_portfolio], index=["Portafolio de Mínimo Riesgo"])
-max_treynor_df = pd.DataFrame(
-    [max_treynor_portfolio], index=["Portafolio de Máximo Treynor"]
-)
-# Concatenamos los DataFrames
-results_with_special_portfolios = pd.concat(
-    [results_df, max_sharpe_df, min_risk_df, max_treynor_df, equal_weight_df]
-)
-
-
 # Estilo del gráfico
 # Configuración del estilo del gráfico
 # plt.style.use('seaborn-whitegrid')  # Estilo limpio y minimalista
-plt.figure(figsize=(16, 10), dpi=400)
 
-# Frontera eficiente
+
+# Set the figure size
+plt.figure(figsize=(16, 10))
+
+# Plot the efficient frontier
 plt.scatter(
     efficient_frontier_data["Risk"],
     efficient_frontier_data["Return"],
@@ -237,23 +193,23 @@ plt.scatter(
     cmap="viridis",
 )
 
-plt.colorbar(label="Índice de Sharpe", shrink=0.8)
-# Formato de ejes y etiquetas
-plt.xlabel("Volatilidad (%)", fontsize=12, fontweight="bold", color="black")
-plt.ylabel("Rendimiento Esperado (%)", fontsize=12, fontweight="bold", color="black")
+# Add colorbar
+plt.colorbar(label="Sharpe Ratio", shrink=0.8)
+
+# Set axis labels and formatting
+plt.xlabel("Volatility (%)", fontsize=12, fontweight="bold", color="black")
+plt.ylabel("Expected Return (%)", fontsize=12, fontweight="bold", color="black")
 plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
 plt.gca().xaxis.set_major_formatter(mtick.PercentFormatter(1.0))
 plt.xticks(fontsize=10, color="black")
 plt.yticks(fontsize=10, color="black")
-# Asumiendo que optimal_sharpe es el resultado de la optimización para el máximo Sharpe ratio
-max_sharpe_return = portfolio_return(optimal_sharpe.x, expected_returns)
-max_sharpe_volatility = portfolio_volatility(optimal_sharpe.x, cov_matrix)
-# Puntos especiales
+
+# Plot special points
 for portfolio, color, label in [
-    (optimal_variance, "red", "Mínimo Riesgo"),
-    (optimal_sharpe, "orange", "Máximo Rendimiento (Sharpe)"),
-    (optimal_sortino, "orange", "Máximo Rendimiento (Sortino)"),
-    (optimal_treynor, "blue", "Máximo Rendimiento (Treynor)"),
+    (optimal_variance, "red", "Minimum Risk"),
+    (optimal_sharpe, "orange", "Maximum Return (Sharpe)"),
+    (optimal_sortino, "orange", "Maximum Return (Sortino)"),
+    (optimal_treynor, "blue", "Maximum Return (Treynor)"),
 ]:
     plt.scatter(
         portfolio_volatility(portfolio["x"], cov_matrix),
@@ -264,41 +220,55 @@ for portfolio, color, label in [
         label=label,
     )
 
+# Plot equally weighted portfolio
 plt.scatter(
     equal_weight_metrics["Risk"],
     equal_weight_metrics["Return"],
     color="purple",
-    label="Igualmente Ponderado",
+    label="Equally Weighted",
     marker="*",
     s=150,
 )
 
-# Línea del mercado de capitales (CML)
-# cml_x = [0, max(efficient_frontier_data["Risk"])]
-# cml_y = [rf, optimal_variance.fun]
-
+# Plot Capital Market Line (CML)
+max_sharpe_return = portfolio_return(optimal_sharpe.x, expected_returns)
+max_sharpe_volatility = portfolio_volatility(optimal_sharpe.x, cov_matrix)
 cml_x = [0, max_sharpe_volatility]
 cml_y = [rf, max_sharpe_return]
 plt.plot(cml_x, cml_y, color="black", linestyle="--", linewidth=2, label="CML")
 
-# Línea horizontal para la tasa libre de riesgo
-plt.axhline(
-    y=rf, color="green", linestyle=":", linewidth=2, label="Tasa Libre de Riesgo"
-)
+# Plot risk-free rate
+plt.axhline(y=rf, color="green", linestyle=":", linewidth=2, label="Risk-Free Rate")
 
-# Título y leyenda fuera del gráfico
+# Set title and legend
 plt.title(
-    "Frontera Eficiente de Markowitz y Línea CML",
+    "Efficient Frontier and Capital Market Line",
     fontsize=16,
     fontweight="bold",
     color="black",
 )
 plt.legend(loc="upper left", frameon=True)
 
-# Agregar líneas de cuadrícula
+# Add gridlines
 plt.grid(True)
 
+# Show the plot
 plt.show()
+
+# # Crear un DataFrame con los resultados de la optimización
+# results_df = pd.DataFrame(
+#     {
+#         "Max Sharpe Ratio": optimal_sharpe.x,
+#         "Min Risk": optimal_variance.x,
+#         "Max Sortino Ratio": optimal_sortino.x,
+#         "Max Return": optimal_return.x,
+#         "Max Treynor Ratio": optimal_treynor.x,
+#     },
+#     index=data_without_ipsa.columns,
+# )
+
+# # Transponer el DataFrame para que cada fila corresponda a una cartera
+# results_df = results_df.T
 
 
 # Calcular el portafolio de máximo retorno (activo con mayor retorno esperado)
@@ -307,22 +277,12 @@ weights_max_return = np.zeros(len(expected_returns))
 weights_max_return[max_return_idx] = 1
 
 
-# Función para calcular el ratio de Treynor de un portafolio
-def treynor_ratio(
-    weights, expected_returns, rf, data, market_returns, data_without_ipsa
-):
-    port_return = portfolio_return(weights, expected_returns)
-    beta = portfolio_beta(weights, data, market_returns, data_without_ipsa)
-    return (port_return - rf) / beta if beta != 0 else np.nan
-
-
 # Crear un DataFrame para mostrar los resultados
 portfolios = {
     "Mínimo Riesgo": optimal_variance.x,
     "Máximo Retorno": weights_max_return,
     "Maximo Rendimiento (Sortino)": optimal_sortino.x,
     "Máximo Rendimiento (Sharpe)": optimal_sharpe.x,
-    "Máximo Rendimiento (Treynor)": optimal_treynor.x,
 }
 
 for name, weights in portfolios.items():
@@ -346,5 +306,8 @@ for name, weights in portfolios.items():
     beta = portfolio_beta(weights, data, market_returns, data_without_ipsa)
     print(f"Beta del Portafolio: {beta:.2f}")
     print(
-        f"Índice de Treynor: {treynor_ratio(weights, expected_returns, rf, data, market_returns, data_without_ipsa):.2f}\n"
+        f"Índice de Treynor: {treynor_ratio_calculate(weights, expected_returns, rf, data, market_returns, data_without_ipsa):.2f}\n"
     )
+
+end_time = time.time()
+print(f"Tiempo de ejecución: {end_time - start_time} segundos")
